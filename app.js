@@ -14,20 +14,32 @@ mongoClient.connect(function(err, client){
 
 
     const db = client.db("userDB");
-    const collection = db.collection("users");
+    const collection = db.collection("telegramUsers");
 
     if(err) return console.log(err);
 
 
-    
-    var inputStage = '0';
-    
-    
+
     bot.command('write', ctx => {
-        bot.telegram.sendMessage(ctx.chat.id, `Enter login:`)
-        inputStage = '1';
+        bot.telegram.sendMessage(ctx.chat.id, `Can we get access to your contacts?`, requestContacts)
+
     })
     
+    const requestContacts = {
+        "reply_markup": {
+            "one_time_keyboard": true,
+            "keyboard": [
+                [{
+                    text: "My contacts",
+                    request_contact: true,
+                    one_time_keyboard: true
+                }],
+                ["Cancel"]
+            ]
+        }
+    };
+
+
     bot.command('read', ctx => {
 
 
@@ -35,70 +47,29 @@ mongoClient.connect(function(err, client){
             
             var str = "Entered data:\n";
             
-            results.forEach(element => str += `\nlogin: ` + element.login + `;   pass: ` + element.pass);
+            results.forEach(element => str += `\nname: ` + element.name + `;   phone: ` + element.phone);
             bot.telegram.sendMessage(ctx.chat.id, str)
 
             console.log(results);
         });
         
     })
+
+
+    bot.on("contact",(ctx)=>{
+
+        let user = {name: ctx.message.contact.first_name + " " + ctx.message.contact.last_name, phone: ctx.message.contact.phone_number};
+        collection.insertOne(user, function(err, result){
     
+            if(err) return console.log(err);
 
-    bot.command('del', ctx => {
+            console.log(result.ops);
+        });
 
-        bot.telegram.sendMessage(ctx.chat.id, `Enter deleted login:`)
-        inputStage = 'd1';
-        
     })
 
-
-
-
-    var login = "";
-    var pass = "";
-    
-    bot.hears(/.*/, ctx => {
-
-
-        if(inputStage == '1'){
-            login = ctx.message.text;
-            inputStage = '2';
-            bot.telegram.sendMessage(ctx.chat.id, `Enter password:`)
-        }else{
-            if(inputStage == '2'){
-                pass = ctx.message.text;
-                inputStage = '0';
-
-                let user = {login: login, pass: pass};
-                collection.insertOne(user, function(err, result){
-            
-                    if(err) return console.log(err);
-
-                    console.log(result.ops);
-                });
-
-
-            }
-        }
-        
-        if(inputStage == 'd1'){
-            login = ctx.message.text;
-            inputStage = '0';
-            
-
-            db.collection("users").deleteOne({login: login}, function(err, result){
-              
-                bot.telegram.sendMessage(ctx.chat.id, `Deleted login: \n` + login)
-                console.log(result);
-            });
-
-        }
-
-    })
-    
-    
+ 
     bot.launch();
-
-
+   
 });
 
